@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  mysql-backup:
+    image: 96552333aa/cron-mysql-cloud:latest
+    container_name: mysql-backup
+    restart: unless-stopped
+    
+    # Variables de entorno (opcional, si decides modificar el script para usarlas)
+    environment:
+      - TZ=America/Santiago
+      - DB_HOST=35.209.63.29
+      - DB_PORT=9090
+      - DB_USER=root
+      - DB_PASSWORD=sasa
+      - RETENTION_DAYS=180
+    
+    # Volumen para persistir los backups
+    volumes:
+      - ./backups:/app/backups
+    
+    # Exponer puerto Flask para monitoreo web
+    ports:
+      - "5001:5000"
+    
+    # Recursos (opcional, ajustar según necesidad)
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 512M
+        reservations:
+          cpus: '0.5'
+          memory: 256M
+    
+    # Red (opcional)
+    networks:
+      - backup-network
+
+networks:
+  backup-network:
+    driver: bridge

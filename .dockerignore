@@ -1,0 +1,42 @@
+# Archivo .dockerignore para excluir archivos innecesarios del contexto de build
+
+# Directorios de backups (no incluir en la imagen)
+backups/
+*.sql
+*.sql.gz
+
+# Logs
+*.log
+
+# Scripts de Windows (no necesarios en el contenedor)
+crear_tarea_programada.bat
+crear_tarea_programada.ps1
+
+# Archivos de Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Entornos virtuales
+venv/
+env/
+ENV/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentación innecesaria en build
+.env.example
+
+# Archivos del sistema
+.DS_Store
+Thumbs.db

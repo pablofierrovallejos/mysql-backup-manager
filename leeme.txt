@@ -1,0 +1,61 @@
+# ========================================
+# COMANDOS PARA BUILD Y DEPLOY
+# ========================================
+
+# 1. Construir imagen localmente
+docker build -t 96552333aa/cron-mysql-cloud:latest .
+
+# 2. Subir a Docker Hub
+docker push 96552333aa/cron-mysql-cloud:latest
+
+# ========================================
+# COMANDOS EN SERVIDOR REMOTO
+# ========================================
+
+# 3. Descargar imagen desde Docker Hub
+docker-compose pull
+
+# 4. Iniciar contenedor
+docker-compose up -d
+
+# 5. Ver logs del contenedor
+docker logs -f mysql-backup
+
+# 6. Ejecutar backup manualmente
+docker exec mysql-backup python /app/backup_mysql.py
+
+# 7. Ver logs de backup
+docker exec mysql-backup cat /app/backup_mysql.log
+
+# 8. Ver logs de cron
+docker exec mysql-backup cat /var/log/cron.log
+
+# ========================================
+# ACCESO AL MONITOR WEB
+# ========================================
+
+# El monitor web está disponible en:
+# http://IP_SERVIDOR:5000
+
+# Endpoints disponibles:
+# - http://IP_SERVIDOR:5000/          (Monitor visual)
+# - http://IP_SERVIDOR:5000/api/stats (API de estadísticas)
+# - http://IP_SERVIDOR:5000/api/backups (API de backups)
+# - http://IP_SERVIDOR:5000/api/logs  (API de logs)
+# - http://IP_SERVIDOR:5000/health    (Health check)
+
+# ========================================
+# GESTIÓN DEL CONTENEDOR
+# ========================================
+
+# Detener contenedor
+docker-compose down
+
+# Reiniciar contenedor
+docker-compose restart
+
+# Ver estado
+docker ps | grep mysql-backup
+
+# Ver estadísticas de recursos
+docker stats mysql-backup

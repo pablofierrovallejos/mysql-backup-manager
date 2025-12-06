@@ -1,0 +1,3 @@
+30 23 * * * root cd /app && /usr/local/bin/python /app/backup_mysql.py >> /var/log/cron.log 2>&1
+
+

@@ -1,0 +1,28 @@
+{
+  "databases": [
+    {
+      "name": "MySQL Producción (Cloud)",
+      "host": "35.209.63.29",
+      "port": 9090,
+      "user": "root",
+      "password": "sasa",
+      "description": "Servidor MySQL principal en la nube"
+    },
+    {
+      "name": "MySQL Local (Desarrollo)",
+      "host": "192.168.2.91",
+      "port": 3306,
+      "user": "root",
+      "password": "sasa",
+      "description": "Servidor MySQL local para pruebas"
+    },
+    {
+      "name": "MySQL Backup (Contingencia)",
+      "host": "localhost",
+      "port": 3306,
+      "user": "root",
+      "password": "backup123",
+      "description": "Servidor MySQL de respaldo"
+    }
+  ]
+}

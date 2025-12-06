@@ -1,0 +1,21 @@
+# Dependencias para el proyecto de backup MySQL
+
+# Flask para el servidor web de monitoreo
+flask==3.0.0
+
+# Schedule para programar tareas sin cron
+schedule==1.2.0
+
+# NOTA: Los siguientes módulos son de la biblioteca estándar de Python (no requieren instalación):
+# - os
+# - subprocess
+# - datetime
+# - logging
+# - pathlib
+# - gzip
+# - shutil
+# - json
+
+# REQUISITO EXTERNO:
+# mysqldump debe estar instalado y disponible en el PATH del sistema
+# mysqldump viene incluido con MySQL Client o MySQL Server
