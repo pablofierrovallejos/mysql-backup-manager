@@ -54,7 +54,7 @@ def create_backup(database_name):
         
         logging.info(f"Iniciando backup de {database_name}...")
         
-        # Comando mysqldump
+        # Comando mysqldump con todos los objetos de la base de datos
         cmd = [
             'mysqldump',
             f'--host={DB_HOST}',
@@ -63,9 +63,11 @@ def create_backup(database_name):
             f'--password={DB_PASSWORD}',
             '--skip-ssl',
             '--single-transaction',
-            '--routines',
-            '--triggers',
-            '--events',
+            '--routines',           # Incluir procedimientos almacenados y funciones
+            '--triggers',           # Incluir triggers
+            '--events',             # Incluir eventos programados
+            '--skip-add-drop-table',  # No agregar DROP TABLE (para preservar estructura)
+            '--databases',          # Usar formato --databases para incluir CREATE DATABASE
             database_name
         ]
         

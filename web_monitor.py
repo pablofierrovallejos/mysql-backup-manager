@@ -1103,14 +1103,28 @@ def get_restore_targets():
 def restore_backup():
     """Restaura un backup en un servidor destino"""
     import logging
+    import traceback
+    
+    # Configurar logging detallado
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+    )
     
     try:
+        logging.info("=== INICIO DE PROCESO DE RESTAURACIÓN ===")
+        
         data = request.get_json()
+        logging.debug(f"Datos recibidos: {data}")
+        
         filename = data.get('filename')
         target_index = data.get('target_index')
         database_name = data.get('database_name')
         
+        logging.info(f"Parámetros - Archivo: {filename}, Target Index: {target_index}, DB: {database_name}")
+        
         if not filename or target_index is None or not database_name:
+            logging.error(f"Parámetros incompletos - filename: {filename}, target_index: {target_index}, database_name: {database_name}")
             return jsonify({
                 'status': 'error',
                 'message': 'Parámetros incompletos'
@@ -1118,15 +1132,23 @@ def restore_backup():
         
         # Validar que el archivo de backup existe
         backup_path = BACKUP_DIR / filename
+        logging.info(f"Verificando existencia del archivo: {backup_path}")
+        
         if not backup_path.exists():
+            logging.error(f"Archivo no encontrado: {backup_path}")
             return jsonify({
                 'status': 'error',
-                'message': 'Archivo de backup no encontrado'
+                'message': f'Archivo de backup no encontrado: {backup_path}'
             }), 404
+        
+        logging.info(f"Archivo encontrado. Tamaño: {backup_path.stat().st_size} bytes")
         
         # Cargar configuración de destinos
         targets_file = Path('/app/restore_targets.json')
+        logging.info(f"Cargando configuración de destinos desde: {targets_file}")
+        
         if not targets_file.exists():
+            logging.error(f"Archivo de configuración no encontrado: {targets_file}")
             return jsonify({
                 'status': 'error',
                 'message': 'Archivo de configuración de destinos no encontrado'
@@ -1135,14 +1157,20 @@ def restore_backup():
         with open(targets_file, 'r', encoding='utf-8') as f:
             config = json.load(f)
         
+        logging.debug(f"Configuración cargada: {config}")
+        
         targets = config.get('databases', [])
+        logging.info(f"Total de targets disponibles: {len(targets)}")
+        
         if target_index < 0 or target_index >= len(targets):
+            logging.error(f"Índice de destino inválido: {target_index} (debe estar entre 0 y {len(targets)-1})")
             return jsonify({
                 'status': 'error',
-                'message': 'Índice de destino inválido'
+                'message': f'Índice de destino inválido: {target_index}'
             }), 400
         
         target = targets[target_index]
+        logging.info(f"Target seleccionado: {target['name']} - {target['host']}:{target['port']}")
         
         # Limpiar (eliminar y recrear) la base de datos destino
         drop_cmd = [
@@ -1156,7 +1184,15 @@ def restore_backup():
             f'DROP DATABASE IF EXISTS `{database_name}`; CREATE DATABASE `{database_name}`;'
         ]
         
-        result = subprocess.run(drop_cmd, capture_output=True, text=True)
+        logging.info(f"Ejecutando comando DROP/CREATE DATABASE...")
+        logging.debug(f"Comando (sin password): mysql --host={target['host']} --port={target['port']} --user={target['user']} --skip-ssl -e 'DROP DATABASE IF EXISTS `{database_name}`; CREATE DATABASE `{database_name}`;'")
+        
+        result = subprocess.run(drop_cmd, capture_output=True, text=True, timeout=30)
+        
+        logging.debug(f"Return code DROP/CREATE: {result.returncode}")
+        logging.debug(f"STDOUT: {result.stdout}")
+        logging.debug(f"STDERR: {result.stderr}")
+        
         if result.returncode != 0:
             logging.error(f"Error al preparar base de datos: {result.stderr}")
             return jsonify({
@@ -1164,8 +1200,9 @@ def restore_backup():
                 'message': f'Error al preparar base de datos: {result.stderr}'
             }), 500
         
+        logging.info(f"Base de datos {database_name} preparada correctamente")
+        
         # Restaurar el backup usando gunzip y pipe a mysql
-        # Comando: gunzip -c archivo.sql.gz | mysql ...
         gunzip_cmd = ['gunzip', '-c', str(backup_path)]
         
         restore_cmd = [
@@ -1175,45 +1212,75 @@ def restore_backup():
             f'--user={target["user"]}',
             f'--password={target["password"]}',
             '--skip-ssl',
-            database_name
+            '--force',              # Continuar si hay errores no críticos
+            '--comments',           # Preservar comentarios SQL
+            '--binary-mode=0'       # Modo texto para manejar procedimientos
         ]
         
-        # Ejecutar gunzip y conectar su salida al mysql
+        logging.info("Iniciando proceso de restauración...")
+        logging.debug(f"Comando gunzip: {' '.join(gunzip_cmd)}")
+        logging.debug(f"Comando mysql (sin password): mysql --host={target['host']} --port={target['port']} --user={target['user']} --skip-ssl --force --comments --binary-mode=0")
+        
+        # Ejecutar gunzip
+        logging.info("Ejecutando gunzip...")
         gunzip_process = subprocess.Popen(
             gunzip_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE
         )
         
+        logging.info("Ejecutando mysql restore...")
         result = subprocess.run(
             restore_cmd,
             stdin=gunzip_process.stdout,
             capture_output=True,
-            text=True
+            text=True,
+            timeout=600  # 10 minutos timeout
         )
         
         gunzip_process.stdout.close()
-        gunzip_process.wait()
+        gunzip_stderr = gunzip_process.communicate()[1]
+        gunzip_returncode = gunzip_process.wait()
+        
+        logging.debug(f"Gunzip return code: {gunzip_returncode}")
+        if gunzip_stderr:
+            logging.debug(f"Gunzip STDERR: {gunzip_stderr.decode('utf-8', errors='replace')}")
+        
+        logging.debug(f"MySQL return code: {result.returncode}")
+        logging.debug(f"MySQL STDOUT: {result.stdout}")
+        logging.debug(f"MySQL STDERR: {result.stderr}")
         
         if result.returncode != 0:
-            logging.error(f"Error al restaurar backup: {result.stderr}")
+            error_msg = f"Error al restaurar backup. Return code: {result.returncode}, STDERR: {result.stderr}"
+            logging.error(error_msg)
             return jsonify({
                 'status': 'error',
-                'message': f'Error al restaurar backup: {result.stderr}'
+                'message': error_msg
             }), 500
         
-        logging.info(f"Backup {filename} restaurado en {target['name']} como {database_name}")
+        logging.info(f"✅ Backup {filename} restaurado exitosamente en {target['name']} como {database_name}")
+        logging.info("=== FIN DE PROCESO DE RESTAURACIÓN ===")
         
         return jsonify({
             'status': 'success',
             'message': f'Backup restaurado correctamente en {target["name"]}'
         })
         
-    except Exception as e:
-        logging.error(f"Error al restaurar backup: {str(e)}")
+    except subprocess.TimeoutExpired as e:
+        error_msg = f"Timeout durante la restauración: {str(e)}"
+        logging.error(error_msg)
+        logging.error(traceback.format_exc())
         return jsonify({
             'status': 'error',
-            'message': str(e)
+            'message': error_msg
+        }), 500
+    except Exception as e:
+        error_msg = f"Excepción durante restauración: {type(e).__name__}: {str(e)}"
+        logging.error(error_msg)
+        logging.error(traceback.format_exc())
+        return jsonify({
+            'status': 'error',
+            'message': error_msg
         }), 500
 
 if __name__ == '__main__':

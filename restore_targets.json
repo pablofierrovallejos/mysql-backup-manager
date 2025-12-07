@@ -18,10 +18,10 @@
     },
     {
       "name": "MySQL Backup (Contingencia)",
-      "host": "localhost",
+      "host": "192.168.2.78",
       "port": 3306,
       "user": "root",
-      "password": "backup123",
+      "password": "sasa",
       "description": "Servidor MySQL de respaldo"
     }
   ]
